@@ -149,27 +149,6 @@
   }
 
   /* ---------- centro comercial, trilho, parallax, circulo e progresso (rolagem) ---------- */
-  var centro = $('.centro'), lojas = $$('.lojas i'), acesas = $('.acesas b');
-  /* centro comercial: as portas de aco sobem uma por uma e cada placa acende junto (sem prender a rolagem) */
-  (function () {
-    var portas = $$('.portas i'), tempos = [];
-    portas.forEach(function (p, k) { p.style.setProperty('--i', String(k)); });
-    var acende = function (n) { lojas.forEach(function (l, j) { l.classList.toggle('acesa', j < n); }); acesas.textContent = String(n); };
-    var abre = function () {
-      centro.classList.add('abre');
-      tempos.forEach(clearTimeout); tempos = [];
-      if (calmo) { acende(8); return; }
-      for (var k = 1; k <= 8; k++) tempos.push(setTimeout(acende.bind(null, k), (k - 1) * 210 + 150 + 700));
-    };
-    var fecha = function () { tempos.forEach(clearTimeout); tempos = []; centro.classList.remove('abre'); acende(0); };
-    if (calmo || !('IntersectionObserver' in window)) { abre(); return; }
-    // abre quando 35% da pagina aparece; so fecha de novo quando ela sai inteira da tela (para repetir na volta)
-    new IntersectionObserver(function (es) {
-      var e = es[0];
-      if (e.intersectionRatio >= 0.35 && !centro.classList.contains('abre')) abre();
-      else if (!e.isIntersecting) fecha();
-    }, { threshold: [0, 0.35] }).observe(centro);
-  })();
   var trilhoSec = $('.trilho-sec'), trilho = $('.trilho'), trilhoBarra = $('.trilho-barra'), cartoes = $$('.cartao');
   var parallax = $$('[data-px]'), circulo = $('.foto.circulo'), barra = $('.progresso span');
   var capa = $('.capa');
