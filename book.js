@@ -71,7 +71,7 @@
   $$('[data-conta]').forEach(function (el) { if (!calmo) el.textContent = fmt(0, parseInt(el.getAttribute('data-casas') || '0', 10)); });
 
   /* ---------- aparecer ao entrar na tela ---------- */
-  var alvos = $$('.tit, .olho:not(.sem-marca), .lead, .sub, .foto, [data-rev], .barras, .tabela');
+  var alvos = $$('.tit, .olho:not(.sem-marca), .lead, .sub, .foto, [data-rev], .barras, .tabela, .num');
   var ao = function (el) {
     el.classList.add('visivel');
     $$('[data-conta]', el).forEach(conta);
@@ -150,7 +150,7 @@
 
   /* ---------- centro comercial, trilho, parallax, circulo e progresso (rolagem) ---------- */
   var centro = $('.centro'), lojas = $$('.lojas i'), acesas = $('.acesas b');
-  var trilhoSec = $('.trilho-sec'), trilho = $('.trilho'), trilhoBarra = $('.trilho-barra');
+  var trilhoSec = $('.trilho-sec'), trilho = $('.trilho'), trilhoBarra = $('.trilho-barra'), cartoes = $$('.cartao');
   var parallax = $$('[data-px]'), circulo = $('.foto.circulo'), barra = $('.progresso span');
   var capa = $('.capa');
 
@@ -191,6 +191,17 @@
       var extra = Math.max(0, trilho.scrollWidth - window.innerWidth);
       trilho.style.transform = 'translate3d(' + (-pt * extra).toFixed(1) + 'px,0,0)';
       trilhoBarra.style.setProperty('--p', pt.toFixed(4));
+      // carrossel 3D: o cartao do centro fica de frente, os das pontas giram e recuam
+      if (rt.top < vh && rt.bottom > 0) {
+        var vw = window.innerWidth;
+        cartoes.forEach(function (c) {
+          var r = c.getBoundingClientRect(), d = limita((r.left + r.width / 2 - vw / 2) / vw, -1.2, 1.2), ad = Math.abs(d);
+          c.style.transform = 'perspective(1800px) rotateY(' + (d * -30).toFixed(2) + 'deg) translateZ(' + (-ad * 180).toFixed(1) + 'px)';
+          c.style.opacity = (1 - ad * 0.45).toFixed(3);
+        });
+      }
+    } else if (cartoes[0].style.transform) {
+      cartoes.forEach(function (c) { c.style.transform = ''; c.style.opacity = ''; });
     }
 
     // parallax suave nas fotos marcadas
@@ -215,61 +226,177 @@
   window.addEventListener('load', function () { medeTrilho(); pede(); });
   medeTrilho(); quadro();
 
-  /* ---------- fotos que inclinam com o mouse ---------- */
-  if (!calmo && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-    $$('.foto.inclina').forEach(function (f) {
+  /* ---------- 3D com o mouse: fotos inclinam com reflexo, capa, cartoes e QR ---------- */
+  var mouse = !calmo && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (mouse) {
+    // a foto (caixa) escuta o ponteiro e so a imagem de dentro gira: assim o Chrome nao perde o mouse
+    $$('.foto').forEach(function (f) {
+      if (f.classList.contains('circulo') || f.closest('.pin')) return;
+      var b = document.createElement('span'); b.className = 'brilho'; f.appendChild(b);
       f.addEventListener('pointermove', function (e) {
-        var r = f.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
-        f.style.setProperty('--ry', (x * 7).toFixed(2) + 'deg'); f.style.setProperty('--rx', (-y * 7).toFixed(2) + 'deg');
+        var r = f.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        f.classList.add('mira');
+        f.style.setProperty('--ry', ((x - 0.5) * 9).toFixed(2) + 'deg');
+        f.style.setProperty('--rx', ((0.5 - y) * 7).toFixed(2) + 'deg');
+        f.style.setProperty('--gx', (x * 100).toFixed(1) + '%'); f.style.setProperty('--gy', (y * 100).toFixed(1) + '%');
       });
-      f.addEventListener('pointerleave', function () { f.style.setProperty('--ry', '0deg'); f.style.setProperty('--rx', '0deg'); });
+      f.addEventListener('pointerleave', function () { f.classList.remove('mira'); f.style.setProperty('--ry', '0deg'); f.style.setProperty('--rx', '0deg'); });
     });
+
+    // capa: a foto acompanha o mouse em profundidade e o titulo anda ao contrario
+    var capaEl = $('.capa'), tilt = $('.capa-tilt'), titCapa = $('.capa-tit');
+    capaEl.addEventListener('pointermove', function (e) {
+      var x = e.clientX / window.innerWidth - 0.5, y = e.clientY / window.innerHeight - 0.5;
+      tilt.style.setProperty('--ty', (x * 5).toFixed(2) + 'deg'); tilt.style.setProperty('--tx', (-y * 4).toFixed(2) + 'deg');
+      tilt.style.setProperty('--px', (x * -18).toFixed(1) + 'px'); tilt.style.setProperty('--pv', (y * -12).toFixed(1) + 'px');
+      titCapa.style.transform = 'translate3d(' + (x * 10).toFixed(1) + 'px,' + (y * 6).toFixed(1) + 'px,0)';
+    });
+    capaEl.addEventListener('pointerleave', function () { ['--ty', '--tx', '--px', '--pv'].forEach(function (v) { tilt.style.setProperty(v, '0'); }); titCapa.style.transform = ''; });
+
+    // cartoes do financiamento e QR: o grupo escuta e so o cartao sob o mouse inclina
+    var grupoTilt = function (grupo, itens, forca, aplica) {
+      grupo.addEventListener('pointermove', function (e) {
+        itens.forEach(function (it) {
+          var r = it.getBoundingClientRect(), dentro = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+          var x = dentro ? (e.clientX - r.left) / r.width - 0.5 : 0, y = dentro ? (e.clientY - r.top) / r.height - 0.5 : 0;
+          aplica(it, x * forca, -y * forca, dentro);
+        });
+      });
+      grupo.addEventListener('pointerleave', function () { itens.forEach(function (it) { aplica(it, 0, 0, false); }); });
+    };
+    grupoTilt($('.financia-cartoes'), $$('.vira'), 14, function (it, ry, rx, dentro) {
+      if (!it.classList.contains('visivel')) return;
+      it.style.transition = 'transform .5s cubic-bezier(.2,.75,.1,1), box-shadow .5s';
+      it.style.transform = dentro ? 'perspective(900px) rotateY(' + ry.toFixed(2) + 'deg) rotateX(' + rx.toFixed(2) + 'deg) translateZ(18px)' : '';
+      it.style.boxShadow = dentro ? '0 30px 60px -20px rgba(0,0,0,.7)' : '';
+    });
+    var qr = $('.qr-giro');
+    grupoTilt($('.fale-claro'), [$('.qr')], 30, function (it, ry, rx) { qr.style.setProperty('--qy', ry.toFixed(2) + 'deg'); qr.style.setProperty('--qx', rx.toFixed(2) + 'deg'); });
   }
 
-  /* ---------- brasas subindo da lareira na capa ---------- */
+  /* ---------- fogo da capa: a chama da foto ondula, a luz tremula e as faiscas sobem ---------- */
   (function () {
-    var tela = $('.brasas'); if (!tela || calmo) return;
-    var foto = $('.capa-zoom img'), ctx = tela.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
-    var W = 0, H = 0, fx = 0, fy = 0, esc = 1, parts = [], vivo = true, ultimo = 0;
-    var FOGO = { x: 0.523, y: 0.655, larg: 0.07 };   // ponto da chama na foto inteira (fracao)
+    var telaB = $('.brasas'), telaC = $('.chama'), telaL = $('.luz');
+    if (!telaB || calmo) return;
+    var foto = $('.capa-zoom img'), caixa = $('.capa-zoom');
+    var cB = telaB.getContext('2d'), cC = telaC.getContext('2d'), cL = telaL.getContext('2d');
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    // posicoes em fracao da foto inteira (medidas com grade): chama de x .505 a .548, y .652 a .744
+    var CHAMA = { x0: 0.498, y0: 0.628, x1: 0.556, y1: 0.742 };
+    var BOCA = { x0: 0.506, x1: 0.547, y: 0.700, topo: 0.655 };
+    var W = 0, H = 0, esc = 1, ox = 0, oy = 0, iw = 1672, ih = 941;
+    var cw = 0, ch = 0, sx = 0, sy = 0, sw = 0, sh = 0;
+    var faiscas = [], vivo = true, ultimo = 0, proxRajada = 0, vento = 0;
+
+    // ruido suave: soma de senos com fases diferentes (barato e sem repeticao visivel)
+    var ruido = function (t, k) { return Math.sin(t * 0.0013 * k + 1.7) * 0.5 + Math.sin(t * 0.0031 * k + 4.1) * 0.3 + Math.sin(t * 0.0077 * k) * 0.2; };
+
+    // a foto em alta, carregada a parte: com srcset o naturalWidth da <img> vem "corrigido" e nao serve para recortar
+    var alta = new Image(), altaOk = false;
+    alta.decoding = 'async';
+    alta.onload = function () { altaOk = true; mede(); };
+    alta.src = 'fotos/lareira.webp';
     function mede() {
-      var r = tela.getBoundingClientRect(); W = r.width; H = r.height;
-      tela.width = Math.round(W * dpr); tela.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var iw = foto.naturalWidth || 1672, ih = foto.naturalHeight || 941;
-      esc = Math.max(W / iw, H / ih);
-      fx = (W - iw * esc) / 2 + FOGO.x * iw * esc; fy = (H - ih * esc) / 2 + FOGO.y * ih * esc;
+      W = caixa.offsetWidth; H = caixa.offsetHeight; if (!W || !H || !altaOk) return;
+      iw = alta.naturalWidth; ih = alta.naturalHeight;
+      esc = Math.max(W / iw, H / ih); ox = (W - iw * esc) / 2; oy = (H - ih * esc) / 2;
+      [[telaB, cB], [telaL, cL]].forEach(function (par) { par[0].width = Math.round(W * dpr); par[0].height = Math.round(H * dpr); par[1].setTransform(dpr, 0, 0, dpr, 0, 0); });
+      // area da chama em pixels da tela e da foto original
+      var x = ox + CHAMA.x0 * iw * esc, y = oy + CHAMA.y0 * ih * esc;
+      cw = (CHAMA.x1 - CHAMA.x0) * iw * esc; ch = (CHAMA.y1 - CHAMA.y0) * ih * esc;
+      telaC.style.left = x + 'px'; telaC.style.top = y + 'px'; telaC.style.width = cw + 'px'; telaC.style.height = ch + 'px';
+      telaC.width = Math.round(cw * dpr); telaC.height = Math.round(ch * dpr);
+      sx = CHAMA.x0 * iw; sy = CHAMA.y0 * ih; sw = (CHAMA.x1 - CHAMA.x0) * iw; sh = (CHAMA.y1 - CHAMA.y0) * ih;
+      // recorte da chama uma vez so, numa tela pequena com folga dos lados (as faixas andam para os lados)
+      folga = Math.round(sw * 0.15);
+      fonte.width = Math.round(sw) + folga * 2; fonte.height = Math.round(sh);
+      fonte.getContext('2d').drawImage(alta, sx - folga, sy, fonte.width, fonte.height, 0, 0, fonte.width, fonte.height);
     }
-    function nasce() {
-      var larg = FOGO.larg * 1672 * esc;
-      return { x: fx + (Math.random() - 0.5) * larg, y: fy + (Math.random() - 0.3) * 10, vx: (Math.random() - 0.5) * 0.35, vy: -(0.55 + Math.random() * 1.1), vida: 0, max: 90 + Math.random() * 140, r: 0.8 + Math.random() * 1.9, fase: Math.random() * 6.28 };
+    var fonte = document.createElement('canvas'), folga = 0;    var px = function (fx) { return ox + fx * iw * esc; }, py = function (fy) { return oy + fy * ih * esc; };
+
+    // 1. a chama da propria foto, redesenhada em faixas que ondulam e esticam para cima
+    function desenhaChama(t, forca) {
+      var Wc = telaC.width, Hc = telaC.height; if (!Wc) return;
+      cC.globalCompositeOperation = 'source-over';
+      cC.clearRect(0, 0, Wc, Hc);
+      var faixa = Math.max(2, Math.round(2 * dpr)), fonteFaixa = sh * faixa / Hc;
+      var ampl = Wc * 0.032 * (0.75 + forca * 0.55);
+      var estica = 0.012 + 0.01 * forca;                         // as linguas sobem um pouco, sem mexer a pedra
+      var fw = fonte.width - folga * 2, fh = fonte.height, fsx = fw / Wc;
+      for (var j = 0; j < Hc; j += faixa) {
+        var v = j / Hc;                                         // 0 no alto, 1 na base
+        var k = v < 0.8 ? Math.pow(Math.sin(Math.min(1, v / 0.8) * Math.PI * 0.5), 0.5) : Math.max(0, (1 - v) / 0.2) * 0.8;
+        var dx = (Math.sin(v * 9 - t * 0.0105) + 0.6 * Math.sin(v * 23 + t * 0.017) + 0.35 * Math.sin(v * 47 - t * 0.031)) * ampl * k * (1.15 - v * 0.5);
+        var vs = v + Math.sin(t * 0.006 + v * 7) * estica * k * (1 - v);
+        var fy = Math.max(0, Math.min(fh - fonteFaixa, vs * fh));
+        cC.drawImage(fonte, folga - dx * fsx, fy, fw, fonteFaixa, 0, j, Wc, faixa);
+      }
+      // borda macia em elipse: so o miolo aparece, nada de quadro visivel
+      cC.globalCompositeOperation = 'destination-in';
+      cC.save(); cC.translate(Wc * 0.5, Hc * 0.6); cC.scale(1, Hc / Wc);
+      var g = cC.createRadialGradient(0, 0, 0, 0, 0, Wc * 0.5);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.62, 'rgba(0,0,0,1)'); g.addColorStop(0.86, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      cC.fillStyle = g; cC.fillRect(-Wc, -Wc, Wc * 2, Wc * 2); cC.restore();
+      cC.globalCompositeOperation = 'source-over';
     }
+
+    // 2. a luz do fogo tremulando no ambiente (sofas, piso, pergolado)
+    function desenhaLuz(forca) {
+      cL.clearRect(0, 0, W, H);
+      var cx = px(0.527), cy = py(0.69), raio = Math.max(W, H) * (0.5 + forca * 0.05);
+      var g = cL.createRadialGradient(cx, cy, 0, cx, cy, raio);
+      g.addColorStop(0, 'rgba(255,170,90,0)');
+      g.addColorStop(0.07, 'rgba(255,170,90,' + (0.12 + forca * 0.22).toFixed(3) + ')');
+      g.addColorStop(0.3, 'rgba(255,140,60,' + (0.08 + forca * 0.16).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(40,20,10,0)');
+      cL.fillStyle = g; cL.fillRect(0, 0, W, H);
+    }
+
+    // 3. faiscas com rastro, esfriando do branco ao vermelho
+    function nasce(rajada) {
+      var x = px(BOCA.x0 + Math.random() * (BOCA.x1 - BOCA.x0)), y = py(BOCA.topo + Math.random() * (BOCA.y - BOCA.topo));
+      var forca = (rajada ? 1.35 : 1) * Math.max(0.55, esc * 1.15);
+      return { x: x, y: y, ax: x, ay: y, vx: (Math.random() - 0.5) * 0.7 * forca, vy: -(0.45 + Math.random() * 1.0) * forca, vida: 0, max: 30 + Math.random() * (rajada ? 70 : 50), r: (0.6 + Math.random() * 0.9) * Math.max(0.7, forca), fase: Math.random() * 6.28 };
+    }
+    function desenhaFaiscas(t) {
+      cB.clearRect(0, 0, W, H);
+      if (Math.random() < 0.22) faiscas.push(nasce(false));
+      if (t > proxRajada) { for (var n = 0; n < 5 + Math.random() * 8; n++) faiscas.push(nasce(true)); proxRajada = t + 1800 + Math.random() * 3200; }
+      vento += (ruido(t, 0.7) * 0.35 - vento) * 0.02;
+      cB.globalCompositeOperation = 'lighter'; cB.lineCap = 'round';
+      for (var i = faiscas.length - 1; i >= 0; i--) {
+        var p = faiscas[i]; p.vida++;
+        p.ax = p.x; p.ay = p.y;
+        p.vx += vento * 0.05 + Math.sin(p.fase + p.vida * 0.21) * 0.06;
+        p.vx *= 0.985; p.vy *= 0.982; p.vy -= 0.006;
+        p.x += p.vx; p.y += p.vy;
+        var a = 1 - p.vida / p.max;
+        if (a <= 0 || p.y < -20) { faiscas.splice(i, 1); continue; }
+        var cor = a > 0.75 ? '255,214,140' : a > 0.4 ? '255,150,50' : '220,70,20';
+        var piscar = 0.6 + 0.4 * Math.sin(p.vida * 0.9 + p.fase);
+        cB.strokeStyle = 'rgba(' + cor + ',' + (a * piscar * 0.9).toFixed(3) + ')';
+        cB.lineWidth = p.r * (0.45 + a * 0.6);
+        cB.beginPath(); cB.moveTo(p.ax - p.vx * 0.7, p.ay - p.vy * 0.7); cB.lineTo(p.x, p.y); cB.stroke();
+        if (a > 0.65) { cB.fillStyle = 'rgba(255,190,110,' + ((a - 0.65) * 0.45).toFixed(3) + ')'; cB.beginPath(); cB.arc(p.x, p.y, p.r * 2, 0, 6.283); cB.fill(); }
+      }
+      if (faiscas.length > 220) faiscas.splice(0, faiscas.length - 220);
+      cB.globalCompositeOperation = 'source-over';
+    }
+
     function anima(t) {
       if (!vivo) { ultimo = 0; return; }
       requestAnimationFrame(anima);
       if (t - ultimo < 15) return; ultimo = t;
-      ctx.clearRect(0, 0, W, H);
-      // brilho da chama pulsando
-      var pulso = 0.5 + 0.18 * Math.sin(t / 130) + 0.1 * Math.sin(t / 47);
-      var g = ctx.createRadialGradient(fx, fy - 6, 0, fx, fy - 6, 120 * esc * 2.2);
-      g.addColorStop(0, 'rgba(255,170,70,' + (0.32 * pulso).toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,120,40,0)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      if (parts.length < 70) parts.push(nasce());
-      ctx.globalCompositeOperation = 'lighter';
-      for (var i = parts.length - 1; i >= 0; i--) {
-        var p = parts[i]; p.vida++;
-        p.x += p.vx + Math.sin(p.fase + p.vida / 18) * 0.35; p.y += p.vy; p.vy *= 0.997;
-        var a = 1 - p.vida / p.max;
-        if (a <= 0) { parts.splice(i, 1); continue; }
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.6 + a * 0.6), 0, 6.283);
-        ctx.fillStyle = 'rgba(255,' + Math.round(140 + a * 90) + ',' + Math.round(50 + a * 40) + ',' + (a * 0.9).toFixed(3) + ')';
-        ctx.fill();
-      }
-      ctx.globalCompositeOperation = 'source-over';
+      if (!altaOk) return;
+      if (!W) mede();
+      var forca = Math.max(0, Math.min(1, 0.55 + ruido(t, 1) * 0.35 + (Math.random() - 0.5) * 0.12));
+      desenhaChama(t, forca);
+      desenhaLuz(forca);
+      desenhaFaiscas(t);
     }
-    if (foto.complete) mede(); else foto.addEventListener('load', mede);
+    requestAnimationFrame(anima);
     window.addEventListener('resize', mede);
-    new IntersectionObserver(function (es) { vivo = es[0].isIntersecting; if (vivo && !ultimo) requestAnimationFrame(anima); }).observe(tela);
-    mede(); requestAnimationFrame(anima);
+    new IntersectionObserver(function (es) { vivo = es[0].isIntersecting; if (vivo && !ultimo) requestAnimationFrame(anima); }).observe(telaB);
   })();
 
   /* ---------- lupa: qualquer foto abre grande, com setas e toque ---------- */
