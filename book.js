@@ -153,6 +153,20 @@
   var trilhoSec = $('.trilho-sec'), trilho = $('.trilho'), trilhoBarra = $('.trilho-barra'), cartoes = $$('.cartao');
   var parallax = $$('[data-px]'), circulo = $('.foto.circulo'), barra = $('.progresso span');
   var capa = $('.capa');
+  var obra = $('.obra'), obraGrupos = $$('.casa [data-e]'), obraEtapas = $$('.etapas li'), obraPct = $('.obra-pct b'), casaSvg = $('.casa');
+  var botaoProjeto = $('.modo-projeto');
+  function desenhaObra(po) {
+    // 5 etapas iguais; cada traco se desenha dentro da sua etapa; as janelas acendem na ultima
+    var atual = Math.min(5, Math.floor(po * 5) + 1);
+    obraGrupos.forEach(function (g) {
+      var e = +g.getAttribute('data-e'), local = limita(po * 5 - (e - 1), 0, 1);
+      g.style.setProperty('--d', (1 - local).toFixed(4));
+      g.classList.toggle('agora', e === atual && local < 1);
+    });
+    casaSvg.style.setProperty('--luz', limita(po * 5 - 4.2, 0, 0.8) / 0.8);
+    obraEtapas.forEach(function (li) { var e = +li.getAttribute('data-e'); li.classList.toggle('feita', po * 5 >= e); li.classList.toggle('agora', e === atual && po < 1); });
+    obraPct.textContent = String(Math.round(po * 100));
+  }
 
   function medeTrilho() {
     if (celular() || calmo) { trilhoSec.style.height = ''; trilho.style.transform = ''; return; }
@@ -173,8 +187,13 @@
     var passouCapa = capa.getBoundingClientRect().bottom < vh * 0.4;
     flutua.classList.toggle('mostra', passouCapa);
     contador.classList.toggle('mostra', passouCapa);
+    botaoProjeto.classList.toggle('mostra', passouCapa);
 
-    if (calmo) return;
+    if (calmo) { desenhaObra(1); return; }
+
+    // casa se constroi: progresso da secao fixa
+    var ro = obra.getBoundingClientRect();
+    if (ro.top < vh && ro.bottom > 0) desenhaObra(limita((-ro.top + vh * 0.15) / Math.max(1, ro.height - vh * 0.85), 0, 1));
 
     // centro comercial: zoom saindo e lojas acendendo
     var rc = centro.getBoundingClientRect();
@@ -209,8 +228,7 @@
       var r = f.getBoundingClientRect();
       if (r.bottom < -100 || r.top > vh + 100) return;
       var p = (r.top + r.height / 2 - vh / 2) / (vh + r.height);
-      var img = f.querySelector('img');
-      img.style.setProperty('--py', (p * parseFloat(f.getAttribute('data-px')) * -r.height).toFixed(1) + 'px');
+      f.style.setProperty('--py', (p * parseFloat(f.getAttribute('data-px')) * -r.height).toFixed(1) + 'px');
     });
 
     // circulo do dormitorio abre conforme a foto sobe na tela
@@ -231,7 +249,7 @@
   if (mouse) {
     // a foto (caixa) escuta o ponteiro e so a imagem de dentro gira: assim o Chrome nao perde o mouse
     $$('.foto').forEach(function (f) {
-      if (f.classList.contains('circulo') || f.closest('.pin')) return;
+      if (f.classList.contains('circulo') || f.classList.contains('comparar') || f.closest('.pin')) return;
       var b = document.createElement('span'); b.className = 'brilho'; f.appendChild(b);
       f.addEventListener('pointermove', function (e) {
         var r = f.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
@@ -399,6 +417,153 @@
     new IntersectionObserver(function (es) { vivo = es[0].isIntersecting; if (vivo && !ultimo) requestAnimationFrame(anima); }).observe(telaB);
   })();
 
+  /* ---------- do terreno ao Villagio: arrastar entre projeto e realidade ---------- */
+  (function () {
+    var fig = $('.comparar'); if (!fig) return;
+    var alca = $('.comparar-alca', fig), arrastando = false, mexeu = false;
+    var poe = function (pct) { pct = limita(pct, 0, 100); fig.style.setProperty('--corte', pct.toFixed(2) + '%'); alca.setAttribute('aria-valuenow', String(Math.round(pct))); };
+    var pelo = function (x) { var r = fig.getBoundingClientRect(); poe((x - r.left) / r.width * 100); };
+    fig.addEventListener('pointerdown', function (e) { arrastando = true; mexeu = true; pelo(e.clientX); try { fig.setPointerCapture(e.pointerId); } catch (x) { /* sem captura */ } });
+    fig.addEventListener('pointermove', function (e) { if (arrastando || (e.pointerType === 'mouse' && mouse)) { mexeu = true; pelo(e.clientX); } });
+    ['pointerup', 'pointercancel'].forEach(function (ev) { fig.addEventListener(ev, function () { arrastando = false; }); });
+    // dedo arrastando de lado: le pelo toque, para nao brigar com a rolagem da pagina
+    fig.addEventListener('touchmove', function (e) { if (arrastando) pelo(e.touches[0].clientX); }, { passive: true });
+    alca.addEventListener('keydown', function (e) {
+      var v = parseFloat(fig.style.getPropertyValue('--corte')) || 50;
+      if (e.key === 'ArrowLeft') { poe(v - 5); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { poe(v + 5); e.preventDefault(); }
+    });
+    // na primeira vez que aparece: mostra o projeto inteiro e revela a realidade
+    if (!calmo && 'IntersectionObserver' in window) {
+      var io2 = new IntersectionObserver(function (es) {
+        if (!es[0].isIntersecting) return; io2.disconnect();
+        var t0 = performance.now();
+        (function anda(t) {
+          if (mexeu) return;
+          var p = limita((t - t0) / 2600, 0, 1), e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+          poe(p < 0.55 ? 100 - (e / 0.605) * 90 : 10 + (p - 0.55) / 0.45 * 40);
+          if (p < 1) requestAnimationFrame(anda);
+        })(t0);
+      }, { threshold: 0.5 });
+      io2.observe(fig);
+    }
+  })();
+
+  /* ---------- som da lareira: crepitar e passarinhos gerados pelo navegador (sem arquivo) ---------- */
+  (function () {
+    var botao = $('.som'); if (!botao) return;
+    var Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) { botao.hidden = true; return; }
+    var ac = null, mestre, ruidoBranco, ligado = false, visivel = true, timers = [];
+    function cria() {
+      ac = new Ctx();
+      mestre = ac.createGain(); mestre.gain.value = 0; mestre.connect(ac.destination);
+      // rugido baixo do fogo: ruido marrom em laco
+      var n = ac.sampleRate * 4, buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0), ult = 0;
+      for (var i = 0; i < n; i++) { var w = Math.random() * 2 - 1; ult = (ult + 0.02 * w) / 1.02; d[i] = ult * 3.2; }
+      var fonte = ac.createBufferSource(); fonte.buffer = buf; fonte.loop = true;
+      var lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
+      var g = ac.createGain(); g.gain.value = 0.42;
+      fonte.connect(lp); lp.connect(g); g.connect(mestre); fonte.start();
+      // ruido branco curto para os estalos
+      var m = Math.round(ac.sampleRate * 0.08); ruidoBranco = ac.createBuffer(1, m, ac.sampleRate);
+      var r = ruidoBranco.getChannelData(0); for (var k = 0; k < m; k++) r[k] = Math.random() * 2 - 1;
+    }
+    function estalo(forte) {
+      var t = ac.currentTime, s = ac.createBufferSource(); s.buffer = ruidoBranco;
+      var bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400 + Math.random() * 4200; bp.Q.value = 0.8 + Math.random() * 2.5;
+      var g = ac.createGain(), pico = (forte ? 0.5 : 0.12) * (0.4 + Math.random()), dur = 0.006 + Math.random() * (forte ? 0.05 : 0.025);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(pico, t + 0.0015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(bp); bp.connect(g); g.connect(mestre); s.start(t); s.stop(t + dur + 0.02);
+    }
+    function piu(t, f0, sobe) {
+      var o = ac.createOscillator(), g = ac.createGain(), dur = 0.05 + Math.random() * 0.09;
+      o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * (sobe ? 1.35 : 0.72), t + dur);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.035, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(mestre); o.start(t); o.stop(t + dur + 0.02);
+    }
+    function canto() {
+      var t = ac.currentTime + 0.05, f = 2600 + Math.random() * 1800, notas = 2 + Math.floor(Math.random() * 5);
+      for (var i = 0; i < notas; i++) piu(t + i * (0.09 + Math.random() * 0.07), f * (0.9 + Math.random() * 0.25), Math.random() < 0.6);
+    }
+    function agenda() {
+      timers.forEach(clearTimeout); timers = [];
+      var crepita = function () { if (!ligado || !visivel) return; var rajada = Math.random() < 0.12; estalo(Math.random() < 0.25); if (rajada) for (var i = 0; i < 3; i++) setTimeout(function () { estalo(false); }, 20 + Math.random() * 90); timers.push(setTimeout(crepita, 40 + Math.random() * 260)); };
+      var passaro = function () { if (!ligado || !visivel) return; canto(); timers.push(setTimeout(passaro, 2500 + Math.random() * 5500)); };
+      crepita(); timers.push(setTimeout(passaro, 1200));
+    }
+    function volume(v) { var t = ac.currentTime; mestre.gain.cancelScheduledValues(t); mestre.gain.setValueAtTime(mestre.gain.value, t); mestre.gain.linearRampToValueAtTime(v, t + 1.2); }
+    botao.addEventListener('click', function () {
+      if (!ac) cria();
+      ligado = !ligado;
+      botao.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+      $('span', botao).textContent = ligado ? 'Desligar o som' : 'Ligar o som';
+      if (ligado) { ac.resume(); volume(0.9); agenda(); } else { volume(0); timers.forEach(clearTimeout); }
+    });
+    // o som acompanha a capa: some quando a pessoa rola para baixo e volta ao subir
+    new IntersectionObserver(function (es) {
+      visivel = es[0].isIntersecting;
+      if (!ac || !ligado) return;
+      if (visivel) { volume(0.9); agenda(); } else volume(0);
+    }, { threshold: 0.15 }).observe($('.capa'));
+  })();
+
+  /* ---------- modo projeto: todas as fotos viram desenho tecnico ---------- */
+  (function () {
+    var botao = $('.modo-projeto'), varre = $('.varredura'); if (!botao) return;
+    var NOMES = 'lareira sala-jantar piscina vista centro-comercial redario gourmet coworking playground pet-place mountain academia ambiente-integrado jantar-estar painel-tv cozinha dormitorio-casal quarto-verde dormitorio-solteiro quarto-infantil'.split(' ');
+    var nomeDe = function (src) { var m = /fotos\/(?:mini\/)?([a-z-]+)\.webp/.exec(src || ''); return m && NOMES.indexOf(m[1]) >= 0 ? m[1] : null; };
+    var ligado = false;
+    function troca() {
+      $$('img').forEach(function (im) {
+        if (im.closest('.comparar-projeto')) return;
+        if (ligado) {
+          var nome = nomeDe(im.getAttribute('src')); if (!nome) return;
+          im.dataset.src = im.getAttribute('src'); if (im.getAttribute('srcset')) { im.dataset.srcset = im.getAttribute('srcset'); im.removeAttribute('srcset'); }
+          im.src = 'fotos/projeto/' + nome + '.webp';
+        } else if (im.dataset.src) {
+          if (im.dataset.srcset) im.setAttribute('srcset', im.dataset.srcset);
+          im.src = im.dataset.src; delete im.dataset.src; delete im.dataset.srcset;
+        }
+      });
+      $$('.lanterna').forEach(function (l) {
+        var orig = l.dataset.foto || l.style.getPropertyValue('--foto'); l.dataset.foto = orig;
+        var nome = nomeDe(orig);
+        l.style.setProperty('--foto', ligado && nome ? 'url(fotos/projeto/' + nome + '.webp)' : orig);
+      });
+      document.body.classList.toggle('projeto', ligado);
+    }
+    botao.addEventListener('click', function () {
+      ligado = !ligado;
+      botao.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+      $('span', botao).textContent = ligado ? 'Ver fotos' : 'Modo projeto';
+      if (calmo) { troca(); return; }
+      varre.classList.remove('corre'); void varre.offsetWidth; varre.classList.add('corre');
+      setTimeout(troca, 500);
+    });
+  })();
+
+  /* ---------- lanterna nas paginas escuras: o ponteiro revela uma foto escondida ---------- */
+  (function () {
+    var secoes = $$('.tem-lanterna'); if (!secoes.length) return;
+    secoes.forEach(function (s) {
+      var l = $('.lanterna', s), ultimoToque = 0, alvoX = 0.5, alvoY = 0.5, x = 0.5, y = 0.5, vivo = false;
+      var aponta = function (cx, cy) { var r = s.getBoundingClientRect(); alvoX = (cx - r.left) / r.width; alvoY = (cy - r.top) / r.height; ultimoToque = performance.now(); };
+      s.addEventListener('pointermove', function (e) { aponta(e.clientX, e.clientY); });
+      s.addEventListener('touchmove', function (e) { aponta(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+      s.addEventListener('touchstart', function (e) { aponta(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+      function anima(t) {
+        if (!vivo) return;
+        requestAnimationFrame(anima);
+        // sem ninguem mexendo, a luz passeia sozinha devagar
+        if (t - ultimoToque > 2500) { alvoX = 0.5 + Math.sin(t / 2300) * 0.32; alvoY = 0.5 + Math.sin(t / 1700 + 1) * 0.28; }
+        x += (alvoX - x) * 0.09; y += (alvoY - y) * 0.09;
+        l.style.setProperty('--lx', (x * 100).toFixed(2) + '%'); l.style.setProperty('--ly', (y * 100).toFixed(2) + '%');
+      }
+      if (calmo) return;
+      new IntersectionObserver(function (es) { var antes = vivo; vivo = es[0].isIntersecting; if (vivo && !antes) requestAnimationFrame(anima); }).observe(s);
+    });
+  })();
+
   /* ---------- lupa: qualquer foto abre grande, com setas e toque ---------- */
   var lupa = $('.lupa'), lupaImg = $('img', lupa), lupaLeg = $('.lupa-leg', lupa);
   var fotos = [], vistos = {};
@@ -420,7 +585,7 @@
   }
   document.addEventListener('click', function (e) {
     var alvo = e.target.closest('.foto, .centro-foto, .lazer-foto');
-    if (!alvo || e.target.closest('a, button')) return;
+    if (!alvo || alvo.classList.contains('comparar') || e.target.closest('a, button')) return;
     var im = alvo.classList.contains('lazer-foto') ? palco.querySelector('img.ativa') : alvo.querySelector('img');
     if (im) abre(im.getAttribute('src').replace('mini/', ''));
   });

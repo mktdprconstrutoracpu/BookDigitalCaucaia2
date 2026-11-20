@@ -32,6 +32,12 @@
   <span>Fale com a DPR</span>
 </a>
 
+<button class="modo-projeto" type="button" aria-pressed="false">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+  <span>Modo projeto</span>
+</button>
+<div class="varredura" aria-hidden="true"></div>
+
 <main>
 
 <!-- 01 CAPA -->
@@ -57,6 +63,10 @@
       </div>
     </div>
     <img class="capa-logo-cel" src="fotos/logo-dpr-claro.png" width="258" height="192" alt="">
+    <button class="som" type="button" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="falante" d="M4 9h4l5-4v14l-5-4H4z"/><path class="onda" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="mudo" d="M16 9l5 6M21 9l-5 6"/></svg>
+      <span>Ligar o som</span>
+    </button>
     <span class="rolar" aria-hidden="true">Role para folhear<i></i></span>
   </div>
 </section>
@@ -84,7 +94,8 @@
 </section>
 
 <!-- 03 EM NUMEROS -->
-<section class="pag escuro numeros" id="p03" data-pag="03" data-nome="Em números">
+<section class="pag escuro numeros tem-lanterna" id="p03" data-pag="03" data-nome="Em números">
+  <div class="lanterna" aria-hidden="true" style="--foto: url(fotos/mini/vista.webp)"></div>
   <div class="barras" aria-hidden="true"><i></i><i></i><i></i></div>
   <p class="olho">Em números</p>
   <h2 class="tit">Um projeto completo, <span class="c">do tamanho dos seus planos</span></h2>
@@ -102,7 +113,14 @@
 
 <!-- 04 LOCALIZACAO -->
 <section class="pag claro local-sec" id="p04" data-pag="04" data-nome="Localização">
-  <figure class="foto larga" data-px="0.14"><img src="fotos/vista.webp" srcset="fotos/mini/vista.webp 900w, fotos/vista.webp 1590w" sizes="100vw" width="1590" height="989" loading="lazy" alt="Vista do empreendimento com o centro comercial ao pôr do sol" data-legenda="Perspectiva ilustrada · Vista do empreendimento"><figcaption class="leg">Perspectiva ilustrada · Vista do empreendimento</figcaption></figure>
+  <figure class="foto larga comparar" data-px="0.14">
+    <img src="fotos/vista.webp" srcset="fotos/mini/vista.webp 900w, fotos/vista.webp 1590w" sizes="100vw" width="1590" height="989" loading="lazy" alt="Vista do empreendimento com o centro comercial ao pôr do sol" data-legenda="Perspectiva ilustrada · Vista do empreendimento">
+    <div class="comparar-projeto" aria-hidden="true"><img src="fotos/projeto/vista.webp" width="1590" height="989" loading="lazy" alt=""></div>
+    <span class="comparar-rot esq" aria-hidden="true">Projeto</span>
+    <span class="comparar-rot dir" aria-hidden="true">Realidade</span>
+    <span class="comparar-alca" role="slider" tabindex="0" aria-label="Arraste para comparar o projeto com a perspectiva pronta" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><i></i></span>
+    <figcaption class="leg">Do terreno ao Villagio · arraste para comparar</figcaption>
+  </figure>
   <div class="local-texto">
     <div>
       <p class="olho">Localização</p>
@@ -220,6 +238,72 @@
   </div>
 </section>
 
+<!-- A CASA SE CONSTROI (rolagem) -->
+<section class="escuro obra" id="obra" aria-label="Da fundação às chaves">
+  <div class="obra-tela">
+    <div class="obra-texto">
+      <p class="olho">Da fundação às chaves</p>
+      <h2 class="tit">Do terreno <span class="c">à sua casa</span></h2>
+      <ol class="etapas">
+        <li data-e="1"><b>01</b>Fundação</li>
+        <li data-e="2"><b>02</b>Paredes</li>
+        <li data-e="3"><b>03</b>Telhado</li>
+        <li data-e="4"><b>04</b>Portas e janelas</li>
+        <li data-e="5"><b>05</b>Acabamento e chaves</li>
+      </ol>
+      <p class="obra-pct"><b>0</b><span>% da obra</span></p>
+    </div>
+    <svg class="casa" viewBox="0 0 800 520" role="img" aria-label="Desenho de uma casa sendo construída etapa por etapa">
+      <defs>
+        <radialGradient id="janelaLuz" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#ffd28a"/><stop offset="1" stop-color="#ff9a3c"/></radialGradient>
+        <radialGradient id="halo" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="rgba(255,190,110,.55)"/><stop offset="1" stop-color="rgba(255,190,110,0)"/></radialGradient>
+      </defs>
+      <g class="grade-obra">
+        <path d="M0 440H800"/>
+      </g>
+      <!-- 1 fundacao -->
+      <g data-e="1">
+        <path pathLength="1" d="M130 418H670V440H130Z"/>
+        <path pathLength="1" d="M160 440V478M240 440V478M320 440V478M400 440V478M480 440V478M560 440V478M640 440V478"/>
+        <path pathLength="1" d="M150 418V410H650V418"/>
+      </g>
+      <!-- 2 paredes -->
+      <g data-e="2">
+        <path pathLength="1" d="M160 410V250H640V410"/>
+        <path pathLength="1" d="M420 410V250"/>
+        <path pathLength="1" d="M160 330H420M420 300H640"/>
+        <path pathLength="1" d="M180 410V270M200 410V270M600 410V270M620 410V270"/>
+      </g>
+      <!-- 3 telhado -->
+      <g data-e="3">
+        <path pathLength="1" d="M128 256L400 132L672 256"/>
+        <path pathLength="1" d="M150 250L400 146L650 250"/>
+        <path pathLength="1" d="M210 223L590 223M265 199L535 199M320 174L480 174M370 152L430 152"/>
+        <path pathLength="1" d="M520 186V150H550V200"/>
+      </g>
+      <!-- 4 portas e janelas -->
+      <g data-e="4">
+        <rect class="vidro" x="196" y="282" width="112" height="70"/>
+        <rect class="vidro" x="470" y="300" width="128" height="62"/>
+        <rect class="vidro" x="352" y="318" width="22" height="22"/>
+        <path pathLength="1" d="M196 282H308V352H196ZM252 282V352M196 317H308"/>
+        <path pathLength="1" d="M470 300H598V362H470ZM534 300V362"/>
+        <path pathLength="1" d="M434 410V320H462V410M456 368H452"/>
+        <path pathLength="1" d="M352 318H374V340H352Z"/>
+      </g>
+      <!-- 5 acabamento e chaves -->
+      <g data-e="5">
+        <circle class="halo" cx="252" cy="317" r="120"/>
+        <circle class="halo" cx="534" cy="331" r="120"/>
+        <path pathLength="1" d="M60 440C60 410 90 400 100 420C110 396 140 404 132 440"/>
+        <path pathLength="1" d="M690 440V370M690 380C660 360 670 320 690 312C710 320 722 360 690 380"/>
+        <path pathLength="1" d="M440 440L430 500M456 440L470 500"/>
+        <path pathLength="1" d="M180 440V424M196 440V424M212 440V424M228 440V424M180 428H228M572 440V424M588 440V424M604 440V424M620 440V424M572 428H620"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
 <!-- 13 AS CASAS -->
 <section class="pag claro casas" id="p13" data-pag="13" data-nome="As casas">
   <figure class="foto alta" data-px="0.1"><img src="fotos/ambiente-integrado.webp" srcset="fotos/mini/ambiente-integrado.webp 900w, fotos/ambiente-integrado.webp 1672w" sizes="(max-width: 900px) 100vw, 60vw" width="1672" height="941" loading="lazy" alt="Ambiente integrado com painel de TV e sala" data-legenda="Perspectiva ilustrada · Ambiente integrado"><figcaption class="leg">Perspectiva ilustrada · Ambiente integrado</figcaption></figure>
@@ -295,7 +379,8 @@
 </section>
 
 <!-- 18 FINANCIAMENTO -->
-<section class="pag escuro financia" id="p18" data-pag="18" data-nome="Financiamento">
+<section class="pag escuro financia tem-lanterna" id="p18" data-pag="18" data-nome="Financiamento">
+  <div class="lanterna" aria-hidden="true" style="--foto: url(fotos/mini/sala-jantar.webp)"></div>
   <div class="financia-texto">
     <p class="olho">Financiamento</p>
     <h2 class="tit">Sua casa própria pelo <span class="c">Minha Casa Minha Vida</span></h2>
@@ -353,7 +438,8 @@
 
 <!-- 20 FALE COM A DPR -->
 <section class="pag fale" id="p20" data-pag="20" data-nome="Fale com a DPR">
-  <div class="fale-escuro">
+  <div class="fale-escuro tem-lanterna">
+    <div class="lanterna" aria-hidden="true" style="--foto: url(fotos/mini/piscina.webp)"></div>
     <p class="olho">Fale com a DPR</p>
     <h2 class="tit">Venha conhecer o <span class="c">Villagio Caucaia II</span></h2>
     <p class="lead">Fale com a nossa equipe e receba todos os detalhes do empreendimento, das plantas às condições de financiamento.</p>
